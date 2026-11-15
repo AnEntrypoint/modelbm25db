@@ -29,7 +29,7 @@ function download(url, target, expectedBytes, label) {
         console.error('[modelbm25db] ' + label + ' ' + mb(size) + (expectedBytes ? ' / ' + mb(expectedBytes) + ' (' + Math.floor(size * 100 / expectedBytes) + '%)' : ''))
       } catch {}
     }, 2000)
-    const child = spawn('curl', ['-fL', '--retry', '3', '--retry-delay', '1', '--connect-timeout', '20', '--progress-bar', '-o', temp, url], { stdio: ['ignore', 'ignore', 'pipe'] })
+    const child = spawn('curl', ['-fL', '--http1.1', '--retry', '5', '--retry-all-errors', '--retry-delay', '2', '--connect-timeout', '20', '--progress-bar', '-o', temp, url], { stdio: ['ignore', 'ignore', 'pipe'] })
     child.stderr.setEncoding('utf8')
     child.stderr.on('data', (chunk) => { last = (last + chunk).slice(-1000) })
     child.on('error', (error) => { clearInterval(ticker); fail(nodeError(error)) })
