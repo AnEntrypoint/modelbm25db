@@ -29,9 +29,15 @@
     "search": "node modelbm25.js search",
     "info": "node modelbm25.js info",
     "view": "node modelbm25.js view",
-    "fetch": "node ensure-data.js",
+    "fetch": "node modelbm25.js fetch",
     "build": "node scripts/build-obfuscated.mjs",
     "wasm": "node scripts/build-wasm.mjs",
     "extract": "node modelbm25.js extract"
+  },
+  "dependencies": {
+    "jz": "1.0.3"
+  },
+  "devDependencies": {
+    "terser": "5.51.2"
   }
 }
