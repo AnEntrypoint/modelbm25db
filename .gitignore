@@ -1,0 +1,20 @@
+# Readable sources/build tooling stay local; published runtime JS is minified/obfuscated.
+src/
+scripts/
+node_modules/
+package-lock.json
+modelbm25
+modelbm25.sqlite
+modelbm25.sqlite.br
+thumbs.pack
+data/
+models/
+*.log
+*.tmp
+*.pid
+*.out
+*.err
+__pycache__/
+*.py[cod]
+.DS_Store
+npm-debug.log*
