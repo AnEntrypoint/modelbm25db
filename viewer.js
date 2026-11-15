@@ -7,8 +7,10 @@ import { readFileSync, openSync, readSync, closeSync, statSync, existsSync } fro
 import { brotliDecompressSync } from 'node:zlib';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { ensure } from './ensure-data.js';
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
+await ensure();
 const DB_PATH = process.env.MODELBM25_DB || join(ROOT, 'modelbm25.sqlite.br');
 const PACK_PATH = process.env.MODELBM25_THUMBS || join(ROOT, 'thumbs.pack');
 const PORT = Number(process.argv[2] || process.env.PORT || 8713);

@@ -4,11 +4,13 @@
 import { DatabaseSync } from 'node:sqlite';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { spawn } from 'node:child_process';
+import { ensure } from './ensure-data.js';
 import { brotliDecompressSync } from 'node:zlib';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = dirname(fileURLToPath(import.meta.url));
+await ensure();
 const rawDbPath = process.env.MODELBM25_DB || join(root, 'modelbm25.sqlite');
 const compactDbPath = rawDbPath.endsWith('.br') ? rawDbPath : rawDbPath + '.br';
 const dbPath = existsSync(compactDbPath) ? compactDbPath : rawDbPath;
@@ -99,6 +101,8 @@ if (cmd === 'search') {
   search(words.join(' '), limit, jsonOut, urlsOnly);
 } else if (cmd === 'info' || cmd === 'verify') {
   info();
+} else if (cmd === 'fetch') {
+  console.log('runtime assets ready');
 } else if (cmd === 'view') {
   const port = Number(args[0] || process.env.PORT || 8713);
   const child = spawn(process.execPath, [join(root, 'viewer.js'), String(port)], { stdio: 'inherit', env: process.env });
@@ -110,6 +114,7 @@ if (cmd === 'search') {
   search "blue ice dragon" -n 10 [--json|--urls]
   info                  show database path, size, and document count
   view [port]           start the local thumbnail/search viewer (default 8713)
+  fetch                 prefetch runtime assets (also done automatically)
 
   --urls                print only direct CDN download URLs, one per line
   --json                include both url and cdn_url fields

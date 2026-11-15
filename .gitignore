@@ -1,9 +1,13 @@
-# Ignore build/rebuild artifacts; keep the npm-distributed runtime files.
+# Large read-only runtime assets are downloaded on demand and must not be in git.
+modelbm25.sqlite.br
+thumbs.pack
+modelbm25.sqlite
+
+# Build/rebuild artifacts.
 data/
 scripts/
 models/
 modelbm25
-*.sqlite
 *.log
 *.tmp
 *.pid

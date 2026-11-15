@@ -16,9 +16,9 @@
   "files": [
     "modelbm25.js",
     "viewer.js",
-    "modelbm25.sqlite.br",
-    "thumbs.pack",
-    "README.md"
+    "ensure-data.js",
+    "README.md",
+    "LICENSE"
   ],
   "bin": {
     "modelbm25": "./modelbm25.js"
@@ -30,6 +30,8 @@
     "start": "node modelbm25.js view 8713",
     "search": "node modelbm25.js search",
     "info": "node modelbm25.js info",
-    "view": "node modelbm25.js view 8713"
+    "view": "node modelbm25.js view 8713",
+    "postinstall": "node ensure-data.js",
+    "fetch": "node ensure-data.js"
   }
 }
