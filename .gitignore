@@ -1,0 +1,16 @@
+# Ignore build/rebuild artifacts; keep the npm-distributed runtime files.
+data/
+scripts/
+models/
+modelbm25
+*.sqlite
+*.log
+*.tmp
+*.pid
+*.out
+*.err
+__pycache__/
+*.py[cod]
+.DS_Store
+node_modules/
+npm-debug.log*
