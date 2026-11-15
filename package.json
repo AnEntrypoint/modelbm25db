@@ -2,7 +2,7 @@
   "name": "modelbm25db",
   "version": "1.0.0",
   "private": false,
-  "description": "Read-only BM25 search and local thumbnail viewer for 47,572 CLIP-derived 3D model descriptions",
+  "description": "Read-only BM25 search and thumbnail export for 47,572 CLIP-derived 3D model descriptions",
   "type": "module",
   "license": "MIT",
   "repository": {
@@ -15,7 +15,6 @@
   "homepage": "https://github.com/AnEntrypoint/modelbm25db#readme",
   "files": [
     "modelbm25.js",
-    "viewer.js",
     "ensure-data.js",
     "README.md",
     "LICENSE"
@@ -27,10 +26,9 @@
     "node": ">=24"
   },
   "scripts": {
-    "start": "node modelbm25.js view 8713",
     "search": "node modelbm25.js search",
     "info": "node modelbm25.js info",
-    "view": "node modelbm25.js view 8713",
+    "view": "node modelbm25.js view",
     "fetch": "node ensure-data.js",
     "build": "node scripts/build-obfuscated.mjs",
     "wasm": "node scripts/build-wasm.mjs",
