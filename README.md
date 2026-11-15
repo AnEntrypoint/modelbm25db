@@ -34,24 +34,28 @@ npx github:AnEntrypoint/modelbm25db view 9000
 
 ## First-run data
 
-The git/npm package is tiny and has no `postinstall`. On first use it lazily downloads two read-only assets from the `v1.0.0-data` GitHub Release into the installed package directory, with loud progress on stderr. Search/info need only the 11.7 MB database; `view`/`fetch` also download the 39 MB thumbnail pack:
+The git/npm package is tiny and has no `postinstall` and no runtime npm dependencies. On first use it downloads `modelbm25.wasm` from the `v1.0.0-data` release; the wasm supplies the file/thumb manifest and links, and the host then lazily downloads the read-only assets into the installed package directory with loud progress on stderr. Search/info need only the 11.7 MB database; `view`/`fetch` also download the 39 MB thumbnail pack:
 
 - `modelbm25.sqlite.br` — 11.7 MB Brotli-compressed SQLite FTS5 database
 - `thumbs.pack` — 39 MB compressed WebP thumbnail sheets
 
-The CLI checks file sizes and skips downloads if they are already present. Installation stays quick; downloads happen only when a command needs the data. To prefetch manually:
+The CLI checks file sizes and skips downloads if they are already present. Installation stays quick; downloads happen only when a command needs the data. To prefetch manually, or to materialize everything into a folder:
 
 ```bash
 modelbm25 fetch
-# or
 node ensure-data.js
+node modelbm25.js extract ./modelbm25-extract
 ```
+
+`extract` writes `files/modelbm25.sqlite.br`, `files/thumbs.pack`, and one WebP per model at `thumbs/<hash>.webp` plus `thumbs/index.json`; the file names, release links and thumb offsets come from the wasm.
 
 Override asset locations:
 
 ```bash
 MODELBM25_DB=/path/to/modelbm25.sqlite.br
 MODELBM25_THUMBS=/path/to/thumbs.pack
+MODELBM25_WASM=/path/to/modelbm25.wasm
+MODELBM25_WASM_URL=https://github.com/AnEntrypoint/modelbm25db/releases/download/v1.0.0-data/modelbm25.wasm
 ```
 
 Override the release URL prefix:
@@ -105,5 +109,7 @@ Readable source lives in `src/*.src.js` and is intentionally gitignored. `script
 ```bash
 node scripts/build-obfuscated.mjs
 ```
+
+The wasm's rebuild inputs are also gitignored: `src/wasm/kernel.js`, `scripts/build-wasm.mjs`, the generated `src/wasm/data.generated.js`, and `builder/` with the pinned JZ compiler. `npm run wasm` rebuilds `modelbm25.wasm` from the local `thumbs.pack` and `modelbm25.sqlite.br`; upload it to the data release with `gh release upload v1.0.0-data modelbm25.wasm --clobber`. The published JS only loads the wasm from the release.
 
 The npm/GitHub package ships only the generated `modelbm25.js`, `viewer.js`, and `ensure-data.js`.

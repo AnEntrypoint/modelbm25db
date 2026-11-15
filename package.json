@@ -32,6 +32,8 @@
     "info": "node modelbm25.js info",
     "view": "node modelbm25.js view 8713",
     "fetch": "node ensure-data.js",
-    "build": "node scripts/build-obfuscated.mjs"
+    "build": "node scripts/build-obfuscated.mjs",
+    "wasm": "node scripts/build-wasm.mjs",
+    "extract": "node modelbm25.js extract"
   }
 }
