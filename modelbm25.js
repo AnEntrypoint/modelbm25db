@@ -1,2 +1,121 @@
 #!/usr/bin/env node
-import{copyFileSync as e,mkdirSync as s,writeFileSync as o}from"node:fs";import{join as n,resolve as t}from"node:path";import{ensureWasm as l,info as i,listThumbs as r,search as a,thumbBytes as u,WASM_PATH as c}from"./ensure-data.js";const h='node modelbm25.js view "<query>" [-n 10] [--out <folder>]',f=new Set(["--json","--urls","--details","--no-thumbs"]),d=new Set(["-n","--out"]);function m(e){return e.filter((s,o)=>!f.has(s)&&!d.has(s)&&!d.has(e[o-1])).join(" ")}function g(e,s,o){const n=e.indexOf(s);return n>=0&&void 0!==e[n+1]?e[n+1]:o}const[,,w="help",...b]=process.argv;if("search"===w){const e=b.includes("--json"),s=b.includes("--urls"),o=b.includes("--details");await async function(e,s,o,n,t){const l=(await a(e,s,!1)).results;if(n)for(const e of l)console.log(e.url);else if(o)console.log(JSON.stringify({query:e,count:l.length,view:h,results:l},null,2));else if(t){console.log(`# ${e} — ${l.length} results`);for(const e of l){const s=e.terms.slice(0,5).map(e=>e.term||e).join(", ");console.log(`${Math.abs(e.score).toFixed(4)}  ${e.hash}  ${s}`),console.log(`        ${e.text.slice(0,180)}`),console.log(`        ${e.url}`)}console.log(""),console.log(h)}else{console.log(`# ${e} — ${l.length} ids`);for(const e of l)console.log(e.hash);console.log(""),console.log(`Write their thumbnails to a folder with: ${h}`)}}(m(b),Number(g(b,"-n",10)),e,s,o)}else if("info"===w||"verify"===w)console.log(JSON.stringify(await i(),null,2));else if("fetch"===w)await l(),console.log("runtime assets ready");else if("view"===w)await async function(e,l,i){const r=t(i),c=n(r,"thumbs");s(c,{recursive:!0});const h=await a(e,l,!0),f=[];for(const e of h.results){const s={hash:e.hash,url:e.url,label:e.label,score:e.score,terms:e.terms,text:e.text,file:null};e.thumb&&(s.file=n("thumbs",e.hash+".webp"),o(n(r,s.file),await u({offset:e.thumb.offset,length:e.thumb.length}))),f.push(s)}o(n(r,"results.json"),JSON.stringify({query:e,count:f.length,results:f},null,2)),console.log(JSON.stringify({query:e,count:f.length,thumbs:f.filter(e=>e.file).length,folder:r,index:n(r,"results.json")},null,2))}(m(b),Number(g(b,"-n",10)),g(b,"--out","modelbm25-view"));else if("extract"===w){const a=b.find(e=>!e.startsWith("--"))||"modelbm25-extract";console.log(JSON.stringify(await async function(a,h){const f=t(a),d=n(f,"files"),m=n(f,"thumbs");s(d,{recursive:!0}),s(m,{recursive:!0}),await l(),e(c,n(d,"modelbm25.wasm"));const g=[];if(h){let e=0;const s=(await i()).thumbs;for(;e<s;){const s=await r(e,1e3);for(const e of s.items)o(n(m,e.hash+".webp"),await u(e)),g.push({hash:e.hash,file:"thumbs/"+e.hash+".webp",offset:e.offset,length:e.length});e=s.next}}return o(n(m,"index.json"),JSON.stringify(g)),{folder:f,wasm:n("files","modelbm25.wasm"),thumbs:{folder:"thumbs",count:g.length,index:"thumbs/index.json"}}}(a,!b.includes("--no-thumbs")),null,2))}else console.log('usage: node modelbm25.js <search|info|view|fetch|extract> [args]\n\n  search "blue ice dragon" -n 10 [--json|--urls|--details]\n  info                  show document, term, posting and thumbnail counts\n  view "blue ice dragon" -n 10 [--out folder]\n                        write the matching models\' thumbnails (thumbs/<hash>.webp)\n                        and results.json into folder (default modelbm25-view)\n  fetch                 download the wasm (also done automatically)\n  extract [folder]      write the wasm, every thumbnail and index.json into a folder\n\n  --urls                print direct CDN download URLs, one per line\n  --details             print descriptions and CDN URLs\n  --json                include the url, cdn_url and terms fields\n\nEnvironment:\n  MODELBM25_WASM        override path to modelbm25.wasm\n  MODELBM25_WASM_URL    override the wasm download URL');
+import { copyFileSync, mkdirSync, writeFileSync } from 'node:fs'
+import { join, resolve } from 'node:path'
+import { ensureWasm, info, listThumbs, search, thumbBytes, WASM_PATH } from './ensure-data.js'
+
+const VIEW_INSTRUCTION = 'node modelbm25.js view "<query>" [-n 10] [--out <folder>]'
+const FLAGS = new Set(['--json', '--urls', '--details', '--no-thumbs'])
+const VALUED = new Set(['-n', '--out'])
+
+function words(args) {
+  return args.filter((arg, i) => !FLAGS.has(arg) && !VALUED.has(arg) && !VALUED.has(args[i - 1])).join(' ')
+}
+
+function option(args, name, fallback) {
+  const at = args.indexOf(name)
+  return at >= 0 && args[at + 1] !== undefined ? args[at + 1] : fallback
+}
+
+async function searchCommand(query, limit, jsonOut, urlsOnly, details) {
+  const found = await search(query, limit, false)
+  const results = found.results
+  if (urlsOnly) {
+    for (const r of results) console.log(r.url)
+  } else if (jsonOut) {
+    console.log(JSON.stringify({ query, count: results.length, view: VIEW_INSTRUCTION, results }, null, 2))
+  } else if (details) {
+    console.log(`# ${query} — ${results.length} results`)
+    for (const r of results) {
+      const terms = r.terms.slice(0, 5).map((x) => x.term || x).join(', ')
+      console.log(`${Math.abs(r.score).toFixed(4)}  ${r.hash}  ${terms}`)
+      console.log(`        ${r.text.slice(0, 180)}`)
+      console.log(`        ${r.url}`)
+    }
+    console.log('')
+    console.log(VIEW_INSTRUCTION)
+  } else {
+    console.log(`# ${query} — ${results.length} ids`)
+    for (const r of results) console.log(r.hash)
+    console.log('')
+    console.log(`Write their thumbnails to a folder with: ${VIEW_INSTRUCTION}`)
+  }
+}
+
+async function viewCommand(query, limit, outOption) {
+  const folder = resolve(outOption)
+  const thumbsDir = join(folder, 'thumbs')
+  mkdirSync(thumbsDir, { recursive: true })
+  const found = await search(query, limit, true)
+  const written = []
+  for (const r of found.results) {
+    const entry = { hash: r.hash, url: r.url, label: r.label, score: r.score, terms: r.terms, text: r.text, file: null }
+    if (r.thumb) {
+      entry.file = join('thumbs', r.hash + '.webp')
+      writeFileSync(join(folder, entry.file), await thumbBytes({ offset: r.thumb.offset, length: r.thumb.length }))
+    }
+    written.push(entry)
+  }
+  writeFileSync(join(folder, 'results.json'), JSON.stringify({ query, count: written.length, results: written }, null, 2))
+  console.log(JSON.stringify({ query, count: written.length, thumbs: written.filter((r) => r.file).length, folder, index: join(folder, 'results.json') }, null, 2))
+}
+
+async function extractCommand(folder, withThumbs) {
+  const root = resolve(folder)
+  const filesDir = join(root, 'files')
+  const thumbsDir = join(root, 'thumbs')
+  mkdirSync(filesDir, { recursive: true })
+  mkdirSync(thumbsDir, { recursive: true })
+  await ensureWasm()
+  copyFileSync(WASM_PATH, join(filesDir, 'modelbm25.wasm'))
+  const index = []
+  if (withThumbs) {
+    let next = 0
+    const total = (await info()).thumbs
+    while (next < total) {
+      const page = await listThumbs(next, 1000)
+      for (const item of page.items) {
+        writeFileSync(join(thumbsDir, item.hash + '.webp'), await thumbBytes(item))
+        index.push({ hash: item.hash, file: 'thumbs/' + item.hash + '.webp', offset: item.offset, length: item.length })
+      }
+      next = page.next
+    }
+  }
+  writeFileSync(join(thumbsDir, 'index.json'), JSON.stringify(index))
+  return { folder: root, wasm: join('files', 'modelbm25.wasm'), thumbs: { folder: 'thumbs', count: index.length, index: 'thumbs/index.json' } }
+}
+
+const [, , cmd = 'help', ...args] = process.argv
+if (cmd === 'search') {
+  const jsonOut = args.includes('--json')
+  const urlsOnly = args.includes('--urls')
+  const details = args.includes('--details')
+  await searchCommand(words(args), Number(option(args, '-n', 10)), jsonOut, urlsOnly, details)
+} else if (cmd === 'info' || cmd === 'verify') {
+  console.log(JSON.stringify(await info(), null, 2))
+} else if (cmd === 'fetch') {
+  await ensureWasm()
+  console.log('runtime assets ready')
+} else if (cmd === 'view') {
+  await viewCommand(words(args), Number(option(args, '-n', 10)), option(args, '--out', 'modelbm25-view'))
+} else if (cmd === 'extract') {
+  const folder = args.find((arg) => !arg.startsWith('--')) || 'modelbm25-extract'
+  console.log(JSON.stringify(await extractCommand(folder, !args.includes('--no-thumbs')), null, 2))
+} else {
+  console.log(`usage: node modelbm25.js <search|info|view|fetch|extract> [args]
+
+  search "blue ice dragon" -n 10 [--json|--urls|--details]
+  info                  show document, term, posting and thumbnail counts
+  view "blue ice dragon" -n 10 [--out folder]
+                        write the matching models' thumbnails (thumbs/<hash>.webp)
+                        and results.json into folder (default modelbm25-view)
+  fetch                 download the wasm (also done automatically)
+  extract [folder]      write the wasm, every thumbnail and index.json into a folder
+
+  --urls                print direct CDN download URLs, one per line
+  --details             print descriptions and CDN URLs
+  --json                include the url, cdn_url and terms fields
+
+Environment:
+  MODELBM25_WASM        override path to modelbm25.wasm
+  MODELBM25_WASM_URL    override the wasm download URL`)
+}
