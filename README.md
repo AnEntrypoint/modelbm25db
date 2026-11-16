@@ -33,12 +33,11 @@ modelbm25 fetch
 
 ```bash
 modelbm25 search "blue ice dragon" -n 10
-modelbm25 search "blue ice dragon" -n 10 --urls
 modelbm25 search "blue ice dragon" -n 10 --details
 modelbm25 search "blue ice dragon" -n 10 --json
 ```
 
-Default output lists the matching model hashes, then the view instruction. `--urls` prints direct CDN links, `--details` prints scores, top terms, descriptions and links, and `--json` prints `hash`, `url`, `cdn_url`, `label`, `score`, `terms` and `text` for each result.
+Default output lists the matching model hashes, then the view instruction. `--details` prints scores, top terms and descriptions, and `--json` prints `hash`, `label`, `score`, `terms` and `text` for each result. No output carries a model link; `glb` writes a model's file.
 
 Scores are BM25 with k1 = 1.2 and b = 0.75 and are negative, lower is better, as with SQLite FTS5's `bm25()`. Tokens are lowercase ASCII letters and digits with light suffix stemming (`-s`, `-es` via `ies`, `-ed`, `-ing`). Against the previous SQLite FTS5 (porter) ranking on eight sample queries the top-10 hashes overlapped 96% of the time and the top result matched every time.
 
@@ -53,9 +52,17 @@ modelbm25 view "blue ice dragon" -n 10 --out ./blue-ice
 Output folder layout:
 
 - `thumbs/<64-hex-hash>.webp`: one 64x64 WebP per matched model, copied out of the wasm
-- `results.json`: `query`, `count` and `results`; each result has `hash`, `url`, `label`, `score`, `terms`, `text` and `file` (the thumbnail path, or `null` if it was not written)
+- `results.json`: `query`, `count` and `results`; each result has `hash`, `label`, `score`, `terms`, `text` and `file` (the thumbnail path, or `null` if it was not written)
 
 `--out` defaults to `modelbm25-view` in the current directory. `-n` sets how many models to write (default 10). The command prints a JSON summary with the folder, the match count, the thumbnail count and the path of `results.json`.
+
+## Write a model's GLB
+
+```bash
+modelbm25 glb 9c5fc615589cbb0a9248dbd2b74fa0d960e78e7cf92bc1bc5f828ae00524dbbb --out ./model.glb
+```
+
+Give it the 64-hex hash from `search`. The wasm builds the model's GLB link from that hash, and the host downloads the GLB to `--out` with curl. The link goes to curl on stdin, not on the command line, and is never printed or written to a file. The command prints the hash, the file path and the byte count as JSON, and exits 1 with the error if the hash is unknown or the download fails.
 
 ## Extract everything
 
@@ -88,7 +95,7 @@ Node **24+** and the `jz` package (installed with the CLI).
 - postings: document index (u32) and term frequency (u16) for every term occurrence
 - the thumbnail pack: the 13-byte header, 47,572 index records (hash, offset, length) and the WebP blobs
 
-The kernel exports `search`, `listThumbs`, `info` and the typed arrays it reads and writes (`blob`, `input`, `json`, `thumbBytes`). It ranks, builds the JSON and copies the thumbnails itself. The JS host instantiates it, copies the payload into `blob` once, and decodes `json` and `thumbBytes`.
+The kernel exports `search`, `listThumbs`, `glb`, `info` and the typed arrays it reads and writes (`blob`, `input`, `json`, `thumbBytes`). It ranks, builds the JSON and copies the thumbnails itself. The JS host instantiates it, copies the payload into `blob` once, and decodes `json` and `thumbBytes`.
 
 ## Source and rebuild
 

@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 import { copyFileSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { ensureWasm, info, listThumbs, search, thumbBytes, WASM_PATH } from './ensure-data.js'
+import { ensureWasm, info, listThumbs, search, downloadGlb, thumbBytes, WASM_PATH } from './ensure-data.js'
 
 const VIEW_INSTRUCTION = 'node modelbm25.js view "<query>" [-n 10] [--out <folder>]'
-const FLAGS = new Set(['--json', '--urls', '--details', '--no-thumbs'])
+const FLAGS = new Set(['--json', '--details', '--no-thumbs'])
 const VALUED = new Set(['-n', '--out'])
 
 function words(args) {
@@ -16,12 +16,10 @@ function option(args, name, fallback) {
   return at >= 0 && args[at + 1] !== undefined ? args[at + 1] : fallback
 }
 
-async function searchCommand(query, limit, jsonOut, urlsOnly, details) {
+async function searchCommand(query, limit, jsonOut, details) {
   const found = await search(query, limit, false)
   const results = found.results
-  if (urlsOnly) {
-    for (const r of results) console.log(r.url)
-  } else if (jsonOut) {
+  if (jsonOut) {
     console.log(JSON.stringify({ query, count: results.length, view: VIEW_INSTRUCTION, results }, null, 2))
   } else if (details) {
     console.log(`# ${query} — ${results.length} results`)
@@ -29,7 +27,6 @@ async function searchCommand(query, limit, jsonOut, urlsOnly, details) {
       const terms = r.terms.slice(0, 5).map((x) => x.term || x).join(', ')
       console.log(`${Math.abs(r.score).toFixed(4)}  ${r.hash}  ${terms}`)
       console.log(`        ${r.text.slice(0, 180)}`)
-      console.log(`        ${r.url}`)
     }
     console.log('')
     console.log(VIEW_INSTRUCTION)
@@ -48,7 +45,7 @@ async function viewCommand(query, limit, outOption) {
   const found = await search(query, limit, true)
   const written = []
   for (const r of found.results) {
-    const entry = { hash: r.hash, url: r.url, label: r.label, score: r.score, terms: r.terms, text: r.text, file: null }
+    const entry = { hash: r.hash, label: r.label, score: r.score, terms: r.terms, text: r.text, file: null }
     if (r.thumb) {
       entry.file = join('thumbs', r.hash + '.webp')
       writeFileSync(join(folder, entry.file), await thumbBytes({ offset: r.thumb.offset, length: r.thumb.length }))
@@ -87,9 +84,8 @@ async function extractCommand(folder, withThumbs) {
 const [, , cmd = 'help', ...args] = process.argv
 if (cmd === 'search') {
   const jsonOut = args.includes('--json')
-  const urlsOnly = args.includes('--urls')
   const details = args.includes('--details')
-  await searchCommand(words(args), Number(option(args, '-n', 10)), jsonOut, urlsOnly, details)
+  await searchCommand(words(args), Number(option(args, '-n', 10)), jsonOut, details)
 } else if (cmd === 'info' || cmd === 'verify') {
   console.log(JSON.stringify(await info(), null, 2))
 } else if (cmd === 'fetch') {
@@ -100,20 +96,37 @@ if (cmd === 'search') {
 } else if (cmd === 'extract') {
   const folder = args.find((arg) => !arg.startsWith('--')) || 'modelbm25-extract'
   console.log(JSON.stringify(await extractCommand(folder, !args.includes('--no-thumbs')), null, 2))
+} else if (cmd === 'glb') {
+  const hash = args.find((arg, i) => !arg.startsWith('--') && args[i - 1] !== '--out')
+  const out = option(args, '--out', '')
+  if (!hash || !out) {
+    console.error('usage: node modelbm25.js glb <64-hex-hash> --out <file.glb>')
+    process.exitCode = 1
+  } else {
+    const file = resolve(out)
+    try {
+      const bytes = await downloadGlb(hash, file)
+      console.log(JSON.stringify({ hash, file, bytes }, null, 2))
+    } catch (error) {
+      console.error(error.message)
+      process.exitCode = 1
+    }
+  }
 } else {
   console.log(`usage: node modelbm25.js <search|info|view|fetch|extract> [args]
 
-  search "blue ice dragon" -n 10 [--json|--urls|--details]
+  search "blue ice dragon" -n 10 [--json|--details]
   info                  show document, term, posting and thumbnail counts
   view "blue ice dragon" -n 10 [--out folder]
                         write the matching models' thumbnails (thumbs/<hash>.webp)
                         and results.json into folder (default modelbm25-view)
   fetch                 download the wasm (also done automatically)
   extract [folder]      write the wasm, every thumbnail and index.json into a folder
+  glb <hash> --out <file.glb>
+                        write one model's GLB to a file; the hash comes from search
 
-  --urls                print direct CDN download URLs, one per line
-  --details             print descriptions and CDN URLs
-  --json                include the url, cdn_url and terms fields
+  --details             print scores, top terms and descriptions
+  --json                include the hash, label, score, terms and text fields
 
 Environment:
   MODELBM25_WASM        override path to modelbm25.wasm

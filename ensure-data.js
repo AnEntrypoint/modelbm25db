@@ -80,4 +80,38 @@ export async function thumbBytes(item) {
   return Buffer.from(k.thumbBytes.subarray(item.offset, item.offset + item.length))
 }
 
+async function glbKernel() {
+  const k = await openKernel()
+  if (typeof k.glb === 'function') return k
+  unlinkSync(WASM_PATH)
+  kernel = null
+  await ensureWasm()
+  return openKernel()
+}
+
+export async function downloadGlb(hash, target) {
+  const k = await glbKernel()
+  const bytes = Buffer.from(hash, 'utf8').subarray(0, k.input.length)
+  k.input.set(bytes)
+  const n = k.glb(bytes.length)
+  if (n === 0) throw new Error('no model with hash ' + hash)
+  const url = decoder.decode(k.json.subarray(0, n))
+  return new Promise((done, fail) => {
+    mkdirSync(dirname(target), { recursive: true })
+    const temp = target + '.part'
+    try { unlinkSync(temp) } catch {}
+    const child = spawn('curl', ['-fL', '--http1.1', '--retry', '5', '--retry-all-errors', '--retry-delay', '2', '--connect-timeout', '20', '-K', '-', '-o', temp], { stdio: ['pipe', 'ignore', 'pipe'] })
+    let last = ''
+    child.stderr.setEncoding('utf8')
+    child.stderr.on('data', (chunk) => { last = (last + chunk).slice(-1000) })
+    child.on('error', fail)
+    child.on('exit', (code) => {
+      if (code !== 0) { fail(new Error('glb download failed, curl exit ' + code + ': ' + last.split(url).join('<glb>').slice(-300))); return }
+      renameSync(temp, target)
+      done(statSync(target).size)
+    })
+    child.stdin.end('url = "' + url + '"\n')
+  })
+}
+
 export { ROOT, WASM_PATH }
